@@ -1,6 +1,6 @@
-# Y Data Img Studio
+# CheapToken Img Studio
 
-[Y Data](https://www.ydata.space) 的附属 AI 生图工作台：用户绑定自己的 Y Data API 密钥即可使用 gpt-image-2 系列模型生图，支持 www / vip 双线路可选，费用直连用户账户，本站不经手任何费用。
+[Cheap Token](https://www.cheaptoken.org) 的附属 AI 生图工作台：用户绑定自己的 CheapToken API 密钥即可使用 gpt-image-2 系列模型生图，支持 www / vip 双线路可选，费用直连用户账户，本站不经手任何费用。
 
 ## 功能
 
