@@ -665,6 +665,19 @@ async function handleApi(req, res, pathname) {
     db.save();
     return json(res, 200, { ok: true });
   }
+  // 删除单张生成图片，保留同一作品中的其他图片和日志
+  if (req.method === 'POST' && pathname === '/api/my/images/delete') {
+    if (!rateLimit('deli:' + user.id, 40, 60e3)) return sendErr(429, '操作太频繁，请稍后再试');
+    const b = await readJson(req, 1);
+    const image = String(b.image || '');
+    if (!/^\/img\/[A-Za-z0-9_-]+\.(?:png|jpe?g|webp)$/.test(image)) return sendErr(400, '图片参数错误');
+    const work = db.data.works.find((w) => w.userId === user.id && Array.isArray(w.images) && w.images.includes(image));
+    if (!work) return sendErr(404, '图片不存在');
+    work.images = work.images.filter((img) => img !== image);
+    try { fs.unlinkSync(path.join(IMG_DIR, path.basename(image))); } catch (_) {}
+    db.save();
+    return json(res, 200, { ok: true, remaining: work.images.length });
+  }
   // 批量删除生成记录（含对应图片）
   if (req.method === 'POST' && pathname === '/api/my/works/delete-batch') {
     if (!rateLimit('delw:' + user.id, 20, 60e3)) return sendErr(429, '操作太频繁，请稍后再试');

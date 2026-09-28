@@ -437,6 +437,7 @@ async function pageAssets() {
           <div class="g-prompt">${esc(tr(w.prompt, 40))}</div>
           <div class="asset-actions">
             <a href="${esc(w.images[0])}" download target="_blank">下载</a>
+            <button class="asset-delete" data-image="${esc(w.images[0])}" title="删除这张图片">删除</button>
             <span>${w.images.length > 1 ? w.images.length + ' 张 · ' : ''}${fmtTime(w.createdAt)}</span>
           </div>
         </div>
@@ -449,9 +450,22 @@ async function pageAssets() {
         <figure class="g-card asset-card" style="cursor:zoom-in">
           <img class="zoomable" src="${esc(u)}" loading="lazy" />
           <span class="expire-badge ${daysLeft(w.expiresAt) <= 2 ? 'urgent' : ''}">剩 ${daysLeft(w.expiresAt)} 天</span>
-          <div class="g-body"><div class="asset-actions"><a href="${esc(u)}" download target="_blank">下载</a><span>${fmtTime(w.createdAt)}</span></div></div>
+          <div class="g-body"><div class="asset-actions"><a href="${esc(u)}" download target="_blank">下载</a><button class="asset-delete" data-image="${esc(u)}" title="删除这张图片">删除</button><span>${fmtTime(w.createdAt)}</span></div></div>
         </figure>`).join(''));
     }
+    $$('#assetsGrid .asset-delete').forEach((b) => b.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm('删除这张图片？删除后不可恢复。')) return;
+      b.disabled = true;
+      try {
+        await api('/api/my/images/delete', { method: 'POST', body: JSON.stringify({ image: b.dataset.image }) });
+        toast('已删除图片');
+        pageAssets();
+      } catch (e) {
+        b.disabled = false;
+        toast(e.message);
+      }
+    });
   } catch (e) {
     $('#assetsGrid').innerHTML = `<div class="empty-tip" style="grid-column:1/-1">加载失败：${esc(e.message)}</div>`;
   }
