@@ -92,7 +92,7 @@ function decodePNG(buf) {
   assert(r.status === 400, '非法密钥格式被拒绝');
 
   // 7. 真实生图（绑定时的线路与密钥）
-  console.log('生成中（真实调用 Y Data 上游，约 20–120s）…');
+  console.log('生成中（真实调用 CheapToken 上游，约 20–120s）…');
   r = await api('/api/generate', { method: 'POST', headers: { Cookie: cookie }, body: JSON.stringify({ prompt: 'a cute panda drinking coffee, flat illustration', size: '1024x1024', quality: 'low', n: 1 }) });
   assert(r.status === 200 && r.data.jobId, '生成任务已创建');
   const { jobId } = r.data;

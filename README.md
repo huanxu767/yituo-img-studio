@@ -15,8 +15,8 @@
 
 整套代码与具体品牌无关，改 4 处即可变成你自己的站点：
 
-1. **API 线路**：`server.js` 顶部 `API_BASES`——配置 1 条或 2 条均可；只配 1 条时，设置页会自动隐藏线路选择器（单线路模式），配 2 条则显示 C 端 / B 端双线路独立绑密钥
-2. **品牌文案**：全局替换 `Y Data` 为你的品牌名（`public/index.html` 标题 / `public/app.js` 首页、文档、关于、设置页）
+1. **API 线路**：默认使用 `https://www.cheaptoken.org`；也可通过环境变量 `API_BASES` 配置逗号分隔的 1 条或 2 条线路。只配 1 条时，设置页会自动隐藏线路选择器（单线路模式），配 2 条则显示多线路独立绑密钥
+2. **品牌文案**：替换 `public/index.html` 和 `public/app.js` 中的品牌文案
 3. **Logo**：替换 `public/assets/logo.png`（正方形最佳，渲染为 46×46 圆角方块 + favicon），并升级 `index.html` 里的 `?v=` 缓存版本号
 4. **首页大图**：替换 `public/assets/hero-cover.jpg`，文案在 `server.js` 的 `syncShowcase` 里改
 
@@ -39,6 +39,8 @@
 # 2. 配置环境变量（密钥不要进版本库）
 cat > /opt/yituo-img/.env <<'EOF'
 PORT=8100
+# 可选：覆盖默认 CheapToken 上游；多条线路用英文逗号分隔
+# API_BASES=https://www.cheaptoken.org
 EOF
 chmod 600 /opt/yituo-img/.env
 

@@ -1,5 +1,5 @@
-// Yituo Studio — AI 生图工作台（仅 gpt-image-2 · 仅生图）
-// 零依赖 Node 服务：静态资源 + 注册登录 + 滑块验证码 + 生图代理(Y Data 双线路)
+// CheapToken Img Studio — AI 生图工作台（仅 gpt-image-2 · 仅生图）
+// 零依赖 Node 服务：静态资源 + 注册登录 + 滑块验证码 + 生图代理
 'use strict';
 
 const http = require('http');
@@ -15,7 +15,8 @@ const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const IMG_DIR = path.join(DATA_DIR, 'images');
 const DB_PATH = path.join(DATA_DIR, 'db.json');
 const PORT = Number(process.env.PORT || 8100);
-const API_BASES = ['https://www.ydata.space', 'https://vip.ydata.space']; // 可选线路（默认第一条）
+// 可用 API_BASES=https://example-a,https://example-b 覆盖默认上游；第一条为默认线路。
+const API_BASES = [...new Set(String(process.env.API_BASES || process.env.API_BASE || 'https://www.cheaptoken.org').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean))];
 const DEFAULT_API_BASE = API_BASES[0];
 const MODELS = ['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'];
 const WORK_TTL_MS = 7 * 24 * 3600e3; // 作品与图片保存 7 天
@@ -26,7 +27,7 @@ const SHOWCASE_DIR = path.join(DATA_DIR, 'showcase');
 fs.mkdirSync(SHOWCASE_DIR, { recursive: true });
 
 /* ---------------- 首页画廊同步（可用 SHOWCASE_URL 覆盖默认作品源） ---------------- */
-const SHOWCASE_URL = process.env.SHOWCASE_URL || 'https://img.junliai.org/admin/api/showcase';
+const SHOWCASE_URL = process.env.SHOWCASE_URL || '';
 const SHOWCASE_JSON = path.join(DATA_DIR, 'showcase.json');
 const SHOWCASE_TTL = 6 * 3600e3;
 // 作品墙人工撰写的高精度提示词（上游数据不带 prompt，按键为本地图片文件名；上游若补了 prompt 则以上游为准）
@@ -379,7 +380,7 @@ function rateLimit(key, max, windowMs) {
   recent.push(t); rateBuckets.set(key, recent); return true;
 }
 
-/* ---------------- 上游调用（Y Data www/vip 双线路） ---------------- */
+/* ---------------- 上游调用（CheapToken API 线路） ---------------- */
 const ALLOWED_SIZES = new Set(['auto', '1024x1024', '1536x1024', '1024x1536', '2048x1152', '2048x2048']);
 const ALLOWED_QUALITY = new Set(['auto', 'low', 'medium', 'high']);
 const ALLOWED_FORMAT = new Set(['png', 'jpeg', 'webp']);
@@ -519,7 +520,7 @@ async function runJob(jobId) {
     let msg = String(e.message || e).slice(0, 300);
     // 把上游原始报错翻译成可操作的提示
     if (/invalid (api_)?key|invalid token/i.test(msg)) msg += ' ——该密钥在当前线路无效：C 端密钥请配 www 线路、B 端密钥请配 vip 线路，并确认密钥分组支持生图。';
-    else if (/价格未配置/.test(msg)) msg = '该模型在当前线路暂未配置定价（Y Data 上游配置问题），请稍后重试或先换其他模型。';
+    else if (/价格未配置/.test(msg)) msg = '该模型在当前线路暂未配置定价（CheapToken 上游配置问题），请稍后重试或先换其他模型。';
     else if (/cannot process text conversation/i.test(msg)) msg = '上游通道暂时异常（已自动重试仍失败），请稍后重试；' + msg.slice(0, 120);
     job.status = 'error'; job.error = msg;
     logWork({ jobId: job.id, userId: job.userId, userName: job.userName, prompt: job.prompt, model: job.model, size: job.size, n: job.n, images: [], status: 'error', error: job.error, createdAt: now(), elapsedMs: now() - started });
@@ -608,7 +609,7 @@ async function handleApi(req, res, pathname) {
   }
   if (!user) return sendErr(401, '请先登录');
 
-  /* 绑定 / 解绑 Y Data API Key（每条线路独立一个密钥槽位） */
+  /* 绑定 / 解绑 CheapToken API Key（每条线路独立一个密钥槽位） */
   if (req.method === 'POST' && pathname === '/api/auth/apikey') {
     const b = await readJson(req, 1);
     const apiBase = API_BASES.includes(b.apiBase) ? b.apiBase : (user.apiBase || DEFAULT_API_BASE);
@@ -704,7 +705,7 @@ async function handleApi(req, res, pathname) {
     if (myActive >= MAX_CONCURRENT_PER_USER) return sendErr(429, `同一时刻最多 ${MAX_CONCURRENT_PER_USER} 个任务，请稍候`);
     const genBase = user.apiBase || DEFAULT_API_BASE;
     const genKey = (user.keys && user.keys[genBase]) || null;
-    if (!genKey) return sendErr(403, '当前线路还未绑定 Y Data API 密钥：C 端与 B 端线路需在「设置」里分别绑定各自的密钥');
+    if (!genKey) return sendErr(403, '当前线路还未绑定 CheapToken API 密钥，请先在「设置」里绑定');
     const b = await readJson(req, 24); // 参考图走 base64，放宽
     const prompt = String(b.prompt || '').trim();
     if (!prompt) return sendErr(400, '请写下画面描述');
@@ -755,4 +756,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => console.log(`Yituo Studio listening on http://127.0.0.1:${PORT}`));
+server.listen(PORT, '127.0.0.1', () => console.log(`CheapToken Img Studio listening on http://127.0.0.1:${PORT}`));
