@@ -217,6 +217,11 @@ select {
   width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
   background: var(--card-solid); color: var(--ink); font-size: 14px;
 }
+.custom-size-row input {
+  width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card-solid); color: var(--ink); font-size: 14px;
+}
+.size-hint { margin-top: 7px; color: var(--ink-3); font-size: 11.5px; line-height: 1.5; }
 .model-lock {
   display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-radius: 12px;
   background: linear-gradient(92deg, rgba(124, 92, 240, 0.12), rgba(94, 194, 232, 0.1));

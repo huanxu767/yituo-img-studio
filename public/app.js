@@ -172,7 +172,7 @@ async function pageHome() {
 /* ---------------- 工作台 ---------------- */
 async function pageStudio() {
   if (!state.user) { openAuth('login'); }
-  const sizes = [['1024x1024', '方形 1:1'], ['1536x1024', '横版 3:2'], ['1024x1536', '竖版 2:3'], ['2048x1152', '宽幅 16:9'], ['2048x2048', '大图 1:1'], ['auto', '自动']];
+  const sizes = [['1024x1024', '方形 1:1'], ['1536x1024', '横版 3:2'], ['1024x1536', '竖版 2:3'], ['2048x1152', '宽幅 16:9'], ['2048x2048', '大图 1:1'], ['auto', '自动'], ['custom', '自定义']];
   const qualities = [['auto', '自动'], ['low', '草稿（快）'], ['medium', '标准'], ['high', '精细']];
   const models = state.config.models || ['gpt-image-2'];
   const modelNames = { 'gpt-image-2': '标准版', 'gpt-image-2.5-flare': '炫光版', 'gpt-image-2.5-sunburst': '旭日版' };
@@ -199,6 +199,14 @@ async function pageStudio() {
           <div class="row2">
             <div class="field"><label>尺寸</label><select id="size">${sizes.map(([v, t]) => `<option value="${v}">${t}${v !== 'auto' ? ' · ' + v : ''}</option>`).join('')}</select></div>
             <div class="field"><label>质量</label><select id="quality">${qualities.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></div>
+          </div>
+          <div class="field custom-size-field" id="customSizeField" hidden>
+            <label>自定义尺寸（像素）</label>
+            <div class="row2 custom-size-row">
+              <input id="customWidth" type="number" min="256" max="4096" step="1" value="2350" placeholder="宽度" aria-label="自定义宽度" />
+              <input id="customHeight" type="number" min="256" max="4096" step="1" value="1000" placeholder="高度" aria-label="自定义高度" />
+            </div>
+            <div class="size-hint">宽、高均为 256–4096 的整数；例如 2350 × 1000 正好是 2.35:1</div>
           </div>
           <div class="row2">
             <div class="field"><label>数量</label><select id="count">${[1, 2, 3, 4].map((i) => `<option value="${i}">${i} 张</option>`).join('')}</select></div>
@@ -254,6 +262,12 @@ async function pageStudio() {
   cost();
   window._studioCost = cost;
 
+  const syncCustomSize = () => {
+    $('#customSizeField').hidden = $('#size').value !== 'custom';
+  };
+  $('#size').onchange = syncCustomSize;
+  syncCustomSize();
+
   const prefill = sessionStorage.getItem('prefill');
   if (prefill) { $('#prompt').value = prefill; sessionStorage.removeItem('prefill'); }
 
@@ -303,6 +317,17 @@ async function generate() {
   if (!prompt) { toast('先写下画面描述吧'); return; }
   const n = Number($('#count').value);
   const refs = $$('#refs .ref-item img').map((i) => i.src).filter((s) => s.startsWith('data:'));
+  const sizeValue = $('#size').value;
+  const sizePayload = { size: sizeValue };
+  if (sizeValue === 'custom') {
+    const width = Number($('#customWidth').value);
+    const height = Number($('#customHeight').value);
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 256 || width > 4096 || height < 256 || height > 4096) {
+      toast('自定义宽高需为 256–4096 的整数');
+      return;
+    }
+    sizePayload.customSize = `${width}x${height}`;
+  }
   const btn = $('#genBtn');
   btn.disabled = true;
   const area = $('#resultArea');
@@ -337,7 +362,7 @@ async function generate() {
     renderSteps(sec);
   }, 1000);
   try {
-    const { jobId } = await api('/api/generate', { method: 'POST', body: JSON.stringify({ model: $('#model') ? $('#model').value : undefined, prompt, size: $('#size').value, quality: $('#quality').value, n, outputFormat: $('#fmt').value, refs }) });
+    const { jobId } = await api('/api/generate', { method: 'POST', body: JSON.stringify({ model: $('#model') ? $('#model').value : undefined, prompt, ...sizePayload, quality: $('#quality').value, n, outputFormat: $('#fmt').value, refs }) });
     if (window._studioCost) window._studioCost();
     await pollJob(jobId, area, t0);
     refreshMe(); loadMyWorks();
@@ -560,25 +585,23 @@ async function pageLogs() {
   }
 }
 function pageDocs() {
-  const keyUrl = keysUrl();
   main.innerHTML = `
   <div class="page">
     <div class="page-head"><span class="brand-name">使用文档</span><span class="brand-badge">从零到出图</span></div>
 
     <div class="panel doc-body">
       <p class="doc-kicker">01 · 准备密钥</p>
-      <h3>选择线路并获取 Y Data API 密钥</h3>
-      <p>本站是 <b>Y Data</b> 平台的附属生图站点，支持两条线路，<b>均可使用全部生图模型</b>：生成费用直接从你的 Y Data 账户余额扣除，本站不收任何中间费用。</p>
+      <h3>获取 CheapToken API 密钥</h3>
+      <p>本站是 <b>CheapToken</b> 平台的附属生图站点：生成费用直接从你的 CheapToken 账户余额扣除，本站不收任何中间费用。</p>
       <div class="doc-lines">
-        <div class="doc-line"><b>www.ydata.space</b><span>个人版（C 端）· 面向个人创作者，注册即用</span><a href="https://www.ydata.space/keys" target="_blank" rel="noopener">获取密钥 ↗</a></div>
-        <div class="doc-line"><b>vip.ydata.space</b><span>企业版（B 端）· 面向企业与商用场景，批量更优</span><a href="https://vip.ydata.space/keys" target="_blank" rel="noopener">获取密钥 ↗</a></div>
+        <div class="doc-line"><b>www.cheaptoken.org</b><span>AI API Gateway · 注册即用，支持全部生图模型</span><a href="https://www.cheaptoken.org/keys" target="_blank" rel="noopener"><b>获取密钥 ↗</b></a></div>
       </div>
       <ol class="doc-steps">
-        <li>打开所属线路的密钥页（需先注册 / 登录该线路的 Y Data 账号）</li>
-        <li>点击「新建密钥」，<b>分组务必选择生图分组</b>（如 gpt-image-2 分组）</li>
+        <li>打开密钥页（需先注册 / 登录 CheapToken 账号）</li>
+        <li>点击「新建密钥」，<b>分组选择 openai</b>（支持 gpt-image-2 系列生图模型）</li>
         <li>复制以 <code>sk-</code> 开头的密钥，妥善保存——密钥只完整显示一次</li>
       </ol>
-      <div class="doc-note">两条线路的<b>账号与密钥相互独立</b>：在设置页绑定哪条线路，就要使用那条线路的密钥。余额不足或分组不对时生成会失败并提示 401/403，去对应线路的后台充值或换分组即可。</div>
+      <div class="doc-note">余额不足或分组不对时生成会失败并提示 401/403，去 CheapToken 后台充值或换分组即可。</div>
 
       <p class="doc-kicker">02 · 绑定</p>
       <h3>在本站绑定密钥</h3>
@@ -607,7 +630,7 @@ function pageDocs() {
       <p class="doc-kicker">05 · 常见问题</p>
       <h3>FAQ</h3>
       <dl class="doc-faq">
-        <dt>生成失败提示 401 / 403？</dt><dd>密钥无效、分组不对或 Y Data 余额不足。去 Y Data 后台核对后，在「设置」页更新密钥。</dd>
+        <dt>生成失败提示 401 / 403？</dt><dd>密钥无效、分组不对或 CheapToken 余额不足。去 CheapToken 后台核对后，在「设置」页更新密钥。</dd>
         <dt>提示"请先绑定 API 密钥"？</dt><dd>先到「设置」页完成密钥绑定（见上文 02）。</dd>
         <dt>改图后人物变样了？</dt><dd>描述里强调「严格保持人物长相、发型、服装不变」，或降低改动幅度。</dd>
         <dt>能一次生成多张吗？</dt><dd>可以，数量选 1–4 张；并发任务最多 2 个，排队请稍候。</dd>
@@ -619,15 +642,15 @@ function pageDocs() {
 function pageAbout() {
   main.innerHTML = `
   <div class="page">
-    <div class="page-head"><span class="brand-name">关于</span><span class="brand-badge">Y Data Img Studio</span></div>
+    <div class="page-head"><span class="brand-name">关于</span><span class="brand-badge">CheapToken Img Studio</span></div>
     <div class="panel about-page">
-      <h3 class="about-name"><img src="/assets/logo.png?v=2" alt="Y" /> Y Data Img Studio</h3>
-      <p class="about-line">是 <a href="https://www.ydata.space" target="_blank" rel="noopener">Y Data</a> 的附属 AI 生图工作台。</p>
-      <p class="about-line">绑定你的 Y Data 密钥即可使用 ${state.config.models.length} 款生图模型。</p>
-      <p class="about-line">支持 www（个人 C 端）与 vip（企业 B 端）双线路，均可生图。</p>
-      <p class="about-line">生成费用直连你的 Y Data 账户，本站不加价。</p>
-      <p class="about-line">生成服务由 Y Data 平台提供。</p>
-      <p class="about-line warn">⚠️ 生成的图片在本站仅保留 ${state.config.workTtlDays || 7} 天，请及时下载。</p>
+      <h3 class="about-name"><img src="/assets/logo.png?v=2" alt="CheapToken" /> CheapToken Img Studio</h3>
+      <p class="about-line">是 <a href="https://www.cheaptoken.org/" target="_blank" rel="noopener"><b>CheapToken</b></a> 的附属 AI 生图工作台。</p>
+      <p class="about-line">绑定你的 CheapToken 密钥即可使用 3 款生图模型。</p>
+      <p class="about-line">生成接口由 www.cheaptoken.org 官方网关提供。</p>
+      <p class="about-line">生成费用直连你的 CheapToken 账户，本站不加价。</p>
+      <p class="about-line">生成服务由 CheapToken 平台提供。</p>
+      <p class="about-line warn"><b>⚠️ 生成的图片在本站仅保留 7 天，请及时下载。</b></p>
       <p class="about-line muted">提示：请勿生成违反法律法规与平台政策的内容。</p>
     </div>
   </div>`;

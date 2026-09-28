@@ -25,8 +25,8 @@ fs.mkdirSync(IMG_DIR, { recursive: true });
 const SHOWCASE_DIR = path.join(DATA_DIR, 'showcase');
 fs.mkdirSync(SHOWCASE_DIR, { recursive: true });
 
-/* ---------------- 首页画廊同步（地址经环境变量 SHOWCASE_URL 配置；未配置则只用本地缓存不外拉） ---------------- */
-const SHOWCASE_URL = process.env.SHOWCASE_URL || '';
+/* ---------------- 首页画廊同步（可用 SHOWCASE_URL 覆盖默认作品源） ---------------- */
+const SHOWCASE_URL = process.env.SHOWCASE_URL || 'https://img.junliai.org/admin/api/showcase';
 const SHOWCASE_JSON = path.join(DATA_DIR, 'showcase.json');
 const SHOWCASE_TTL = 6 * 3600e3;
 // 作品墙人工撰写的高精度提示词（上游数据不带 prompt，按键为本地图片文件名；上游若补了 prompt 则以上游为准）
@@ -383,6 +383,17 @@ function rateLimit(key, max, windowMs) {
 const ALLOWED_SIZES = new Set(['auto', '1024x1024', '1536x1024', '1024x1536', '2048x1152', '2048x2048']);
 const ALLOWED_QUALITY = new Set(['auto', 'low', 'medium', 'high']);
 const ALLOWED_FORMAT = new Set(['png', 'jpeg', 'webp']);
+const CUSTOM_SIZE_MIN = 256;
+const CUSTOM_SIZE_MAX = 4096;
+function normalizeCustomSize(value) {
+  const m = /^(\d+)x(\d+)$/.exec(String(value || ''));
+  if (!m) return null;
+  const width = Number(m[1]);
+  const height = Number(m[2]);
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height)) return null;
+  if (width < CUSTOM_SIZE_MIN || width > CUSTOM_SIZE_MAX || height < CUSTOM_SIZE_MIN || height > CUSTOM_SIZE_MAX) return null;
+  return `${width}x${height}`;
+}
 
 function upstreamRequest(baseUrl, apiPath, body, apiKey, isMultipart, boundary) {
   return new Promise((resolve, reject) => {
@@ -686,7 +697,11 @@ async function handleApi(req, res, pathname) {
     if (!prompt) return sendErr(400, '请写下画面描述');
     if (prompt.length > 32000) return sendErr(400, '描述过长（≤32000 字符）');
     const model = MODELS.includes(b.model) ? b.model : MODELS[0];
-    const size = ALLOWED_SIZES.has(b.size) ? b.size : 'auto';
+    let size = ALLOWED_SIZES.has(b.size) ? b.size : 'auto';
+    if (b.size === 'custom') {
+      size = normalizeCustomSize(b.customSize);
+      if (!size) return sendErr(400, `自定义尺寸需为 ${CUSTOM_SIZE_MIN}–${CUSTOM_SIZE_MAX} 的整数宽高`);
+    }
     const quality = ALLOWED_QUALITY.has(b.quality) ? b.quality : 'auto';
     const outputFormat = ALLOWED_FORMAT.has(b.outputFormat) ? b.outputFormat : 'png';
     const n = Math.min(4, Math.max(1, Number(b.n) || 1));
