@@ -10,11 +10,39 @@ const keysUrl = () => (state.user && state.user.apiBase ? state.user.apiBase : (
 const state = { user: null, lastResult: null, config: { models: ['gpt-image-2'], apiBases: ['https://www.cheaptoken.org'], workTtlDays: 7, sizes: [], qualities: [] } };
 
 async function api(path, opts = {}) {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-cache', ...opts });
-  let data = {};
-  try { data = await res.json(); } catch (_) {}
-  if (!res.ok) throw new Error(data.error || `请求失败 (${res.status})`);
-  return data;
+  const readOnly = (opts.method || 'GET').toUpperCase() === 'GET';
+  for (let attempt = 0; ; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      let res, data;
+      try {
+        res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', cache: 'no-cache', ...opts, signal: controller.signal });
+        data = await res.json();
+      } catch (cause) {
+        if (res && !res.ok) {
+          const err = new Error(`服务器响应异常 (${res.status})，请稍后重试。`);
+          err.retryable = [502, 503, 504].includes(res.status);
+          throw err;
+        }
+        const message = controller.signal.aborted ? '连接服务器超时' : '连接服务器失败或响应中断';
+        const err = new Error(readOnly ? message + '，请检查网络后重试。' : message + '，请求可能已提交；生成操作请先到资产或日志确认结果，再决定是否重试。');
+        err.retryable = true;
+        throw err;
+      }
+      if (!res.ok) {
+        const err = new Error((data && data.error) || `请求失败 (${res.status})`);
+        err.retryable = [502, 503, 504].includes(res.status);
+        throw err;
+      }
+      return data;
+    } catch (err) {
+      if (!readOnly || !err.retryable || attempt >= 2) throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+  }
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtNum = (n) => Number(n).toLocaleString('en-US');
@@ -399,9 +427,18 @@ function loadLastResult() {
   try { return JSON.parse(sessionStorage.getItem('lastResult') || 'null'); } catch (_) { return null; }
 }
 async function pollJob(jobId, area, t0) {
+  let failures = 0;
   for (;;) {
     await new Promise((r) => setTimeout(r, 3000));
-    const d = await api('/api/jobs/' + jobId);
+    let d;
+    try {
+      d = await api('/api/jobs/' + jobId);
+      failures = 0;
+    } catch (err) {
+      if (!err.retryable) throw err;
+      if (++failures >= 5) throw new Error('暂时无法查询生成进度，任务可能仍在后台运行，请稍后到资产或日志查看结果，避免重复提交。');
+      continue;
+    }
     if (d.status === 'done') {
       const work = { images: d.images, elapsedMs: d.elapsedMs || (Date.now() - t0), at: Date.now() };
       saveLastResult(work);
@@ -409,7 +446,7 @@ async function pollJob(jobId, area, t0) {
       return;
     }
     if (d.status === 'error') {
-      area.innerHTML = `<div class="gen-err">⚠️ ${esc(d.error || '生成失败')}<br /><small style="opacity:.75">失败不扣费；请核对密钥有效性与 CheapToken 余额后重试</small></div>`;
+      area.innerHTML = `<div class="gen-err">⚠️ ${esc(d.error || '生成失败')}<br /><small style="opacity:.75">请结合生成日志与上游账户记录确认结果和费用后重试。</small></div>`;
       return;
     }
   }

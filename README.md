@@ -72,6 +72,14 @@ nginx 反代 `127.0.0.1:8100` 即可（`client_max_body_size 32m`，参考图走
 
 ## 测试
 
+网络故障回归测试（无需 API 密钥，不调用真实生图）：
+
+```bash
+npm run test:network
+```
+
+真实生图端到端测试：
+
 ```bash
 TEST_API_KEY=sk-xxx node test/e2e.js http://127.0.0.1:8100
 ```

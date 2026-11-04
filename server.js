@@ -409,6 +409,8 @@ function upstreamRequest(baseUrl, apiPath, body, apiKey, isMultipart, boundary) 
     const u = new URL(baseUrl + apiPath);
     const req = https.request({ hostname: u.hostname, port: 443, path: u.pathname + u.search, method: 'POST', headers: { ...headers, 'Content-Length': payload.length }, timeout: 300e3 }, (res) => {
       const chunks = [];
+      res.on('error', reject);
+      res.on('aborted', () => reject(Object.assign(new Error('upstream response aborted'), { code: 'ECONNRESET' })));
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => {
         const text = Buffer.concat(chunks).toString('utf8');
@@ -517,11 +519,14 @@ async function runJob(jobId) {
     job.status = 'done'; job.images = images; job.elapsedMs = now() - started;
     logWork({ jobId, userId: job.userId, userName: job.userName, prompt: job.prompt, model: job.model, size: job.size, n: job.n, images, status: 'done', createdAt: now(), elapsedMs: job.elapsedMs });
   } catch (e) {
+    console.error('generation failed:', { jobId, code: e.code, causeCode: e.cause && e.cause.code, message: String(e.message || e).replace(/sk-[A-Za-z0-9_-]+/g, '[redacted]').slice(0, 300) });
     let msg = String(e.message || e).slice(0, 300);
     // 把上游原始报错翻译成可操作的提示
     if (/invalid (api_)?key|invalid token/i.test(msg)) msg += ' ——该密钥在当前线路无效：C 端密钥请配 www 线路、B 端密钥请配 vip 线路，并确认密钥分组支持生图。';
     else if (/价格未配置/.test(msg)) msg = '该模型在当前线路暂未配置定价（CheapToken 上游配置问题），请稍后重试或先换其他模型。';
     else if (/cannot process text conversation/i.test(msg)) msg = '上游通道暂时异常（已自动重试仍失败），请稍后重试；' + msg.slice(0, 120);
+    else if (/fetch failed/i.test(msg)) msg = '上游服务报告网络连接失败（fetch failed）。请稍后再试或切换已绑定密钥的线路；重试前请确认上游账户的请求及费用记录。';
+    else if (/timeout|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up|response aborted/i.test((e.code || '') + ' ' + msg)) msg = '连接上游生图服务超时或中断。请求可能已被上游处理，请先核对上游账户记录，再决定是否重试。';
     job.status = 'error'; job.error = msg;
     logWork({ jobId: job.id, userId: job.userId, userName: job.userName, prompt: job.prompt, model: job.model, size: job.size, n: job.n, images: [], status: 'error', error: job.error, createdAt: now(), elapsedMs: now() - started });
   } finally { job.refs = null; job.apiKey = null; }

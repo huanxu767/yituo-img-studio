@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test:network": "node --test test/network.js",
     "test:e2e": "node test/e2e.js"
   },
   "engines": {
