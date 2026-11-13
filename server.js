@@ -18,7 +18,8 @@ const PORT = Number(process.env.PORT || 8100);
 // 可用 API_BASES=https://example-a,https://example-b 覆盖默认上游；第一条为默认线路。
 const API_BASES = [...new Set(String(process.env.API_BASES || process.env.API_BASE || 'https://www.cheaptoken.org').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean))];
 const DEFAULT_API_BASE = API_BASES[0];
-const MODELS = ['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'];
+const MODELS = ['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'];
+const DEFAULT_MODEL = 'gpt-image-2.6-sunburst';
 const WORK_TTL_MS = 7 * 24 * 3600e3; // 作品与图片保存 7 天
 const MAX_CONCURRENT_PER_USER = 2;
 
@@ -550,7 +551,7 @@ async function handleApi(req, res, pathname) {
 
   /* ---- 公开接口 ---- */
   if (req.method === 'GET' && pathname === '/api/config') {
-    return json(res, 200, { models: MODELS, apiBases: API_BASES, workTtlDays: 7, sizes: [...ALLOWED_SIZES], qualities: [...ALLOWED_QUALITY] });
+    return json(res, 200, { models: MODELS, defaultModel: DEFAULT_MODEL, apiBases: API_BASES, workTtlDays: 7, sizes: [...ALLOWED_SIZES], qualities: [...ALLOWED_QUALITY] });
   }
   if (req.method === 'GET' && pathname === '/api/captcha/new') {
     if (!rateLimit('cap' + ip, 60, 60e3)) return sendErr(429, '尝试过于频繁，请稍后再试');
@@ -715,7 +716,7 @@ async function handleApi(req, res, pathname) {
     const prompt = String(b.prompt || '').trim();
     if (!prompt) return sendErr(400, '请写下画面描述');
     if (prompt.length > 32000) return sendErr(400, '描述过长（≤32000 字符）');
-    const model = MODELS.includes(b.model) ? b.model : MODELS[0];
+    const model = MODELS.includes(b.model) ? b.model : DEFAULT_MODEL;
     let size = ALLOWED_SIZES.has(b.size) ? b.size : 'auto';
     if (b.size === 'custom') {
       size = normalizeCustomSize(b.customSize);

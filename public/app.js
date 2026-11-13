@@ -7,7 +7,7 @@ const main = $('#main');
 
 /* ---------------- 状态 ---------------- */
 const keysUrl = () => (state.user && state.user.apiBase ? state.user.apiBase : (state.config.apiBases || ['https://www.cheaptoken.org'])[0]) + '/keys';
-const state = { user: null, lastResult: null, config: { models: ['gpt-image-2'], apiBases: ['https://www.cheaptoken.org'], workTtlDays: 7, sizes: [], qualities: [] } };
+const state = { user: null, lastResult: null, config: { models: ['gpt-image-2', 'gpt-image-2.5-flare', 'gpt-image-2.5-sunburst', 'gpt-image-2.6-flare', 'gpt-image-2.6-sunburst'], defaultModel: 'gpt-image-2.6-sunburst', apiBases: ['https://www.cheaptoken.org'], workTtlDays: 7, sizes: [], qualities: [] } };
 
 async function api(path, opts = {}) {
   const readOnly = (opts.method || 'GET').toUpperCase() === 'GET';
@@ -138,6 +138,8 @@ async function pageHome() {
         <div class="model-chip"><div class="m-dot">G</div><div><b>gpt-image-2</b><br /><span>文生图 · 参考图改图 · 透明背景</span></div></div>
         <div class="model-chip"><div class="m-dot">F</div><div><b>gpt-image-2.5-flare</b><br /><span>2.5 系列 · 炫光渲染</span></div></div>
         <div class="model-chip"><div class="m-dot">S</div><div><b>gpt-image-2.5-sunburst</b><br /><span>2.5 系列 · 旭日渲染</span></div></div>
+        <div class="model-chip"><div class="m-dot">F</div><div><b>gpt-image-2.6-flare</b><br /><span>2.6 系列 · 炫光渲染</span></div></div>
+        <div class="model-chip"><div class="m-dot">S</div><div><b>gpt-image-2.6-sunburst</b><br /><span>2.6 系列 · 旭日渲染</span></div></div>
       </div>
     </section>
 
@@ -202,8 +204,9 @@ async function pageStudio() {
   if (!state.user) { openAuth('login'); }
   const sizes = [['1024x1024', '方形 1:1'], ['1536x1024', '横版 3:2'], ['1024x1536', '竖版 2:3'], ['2048x1152', '宽幅 16:9'], ['2048x2048', '大图 1:1'], ['auto', '自动'], ['custom', '自定义']];
   const qualities = [['auto', '自动'], ['low', '草稿（快）'], ['medium', '标准'], ['high', '精细']];
-  const models = state.config.models || ['gpt-image-2'];
-  const modelNames = { 'gpt-image-2': '标准版', 'gpt-image-2.5-flare': '炫光版', 'gpt-image-2.5-sunburst': '旭日版' };
+  const models = state.config.models;
+  const defaultModel = models.includes(state.config.defaultModel) ? state.config.defaultModel : models[0];
+  const modelNames = { 'gpt-image-2': '标准版', 'gpt-image-2.5-flare': '炫光版', 'gpt-image-2.5-sunburst': '旭日版', 'gpt-image-2.6-flare': '炫光版', 'gpt-image-2.6-sunburst': '旭日版' };
   main.innerHTML = `
   <div class="page">
     <div class="page-head"><span class="brand-name">创作工作台</span><span class="brand-badge">文生图 · 参考图改图</span></div>
@@ -222,7 +225,7 @@ async function pageStudio() {
             <input type="file" id="refFile" accept="image/png,image/jpeg,image/webp" multiple hidden />
           </div>
           <div class="field"><label>模型</label>
-            <select id="model">${models.map((m) => `<option value="${esc(m)}">${esc(m)}${modelNames[m] ? ' · ' + modelNames[m] : ''}</option>`).join('')}</select>
+            <select id="model">${models.map((m) => `<option value="${esc(m)}"${m === defaultModel ? ' selected' : ''}>${esc(m)}${modelNames[m] ? ' · ' + modelNames[m] : ''}</option>`).join('')}</select>
           </div>
           <div class="row2">
             <div class="field"><label>尺寸</label><select id="size">${sizes.map(([v, t]) => `<option value="${v}">${t}${v !== 'auto' ? ' · ' + v : ''}</option>`).join('')}</select></div>

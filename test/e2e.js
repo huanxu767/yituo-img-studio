@@ -35,7 +35,8 @@ function decodePNG(buf) {
 (async () => {
   // 1. 配置
   let r = await api('/api/config');
-  assert(r.status === 200 && Array.isArray(r.data.models) && r.data.models.length === 3, 'config 返回 3 个模型');
+  assert(r.status === 200 && Array.isArray(r.data.models) && r.data.models.length === 5, 'config 返回 5 个模型');
+  assert(r.data.models.includes('gpt-image-2.6-flare') && r.data.models.includes('gpt-image-2.6-sunburst') && r.data.defaultModel === 'gpt-image-2.6-sunburst', '2.6 模型可用且默认选择 sunburst');
   const cfgBases = (r.data.apiBases || []).slice();
 
   // 2. 滑块验证码：找深靛色缺口（照片压暗 + 靛蓝偏色），46px 窗口密度最高处

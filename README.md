@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **三模型生图**：gpt-image-2 / gpt-image-2.5-flare / gpt-image-2.5-sunburst，文生图 + 参考图改图（最多 4 张）
+- **五模型生图**：gpt-image-2 / gpt-image-2.5-flare / gpt-image-2.5-sunburst / gpt-image-2.6-flare / gpt-image-2.6-sunburst（默认），文生图 + 参考图改图（最多 4 张）
 - **账号体系**：注册（照片拼图滑块验证码）/ 登录 / 修改密码 / API 密钥绑定（服务端存储、前端脱敏）
 - **资产页**：生成图片管理，每张带剩余天数角标，支持下载和单张删除
 - **日志页**：最近 100 条生成记录（成功/失败/耗时/模型），失败原因可见
